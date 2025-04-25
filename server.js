@@ -31,7 +31,7 @@ mongoose.connect(process.env.MONGO_URI, {
     .catch(err => logError('Erro ao logar mongodb' + err, null, err));
 
 const UserSchema = new mongoose.Schema({
-    nome: String,
+    name: String,
     email: String
 });
 
@@ -405,11 +405,31 @@ app.get('/buckets/:bucketName', async (req, res) => {
  *         description: Arquivo enviado com sucesso
  */
 //Utilizar alguma lib para fazer o upload/strem de arquivos, sugestão: multer
-app.post('/buckets/:bucketName/upload', async (req, res) => {
+const multer = require('multer');
+const multerS3 = require('multer-s3');
+
+const upload = multer({
+    storage: multerS3({
+        s3: s3,
+        bucket: (req, file, cb) => cb(null, req.params.bucketName),
+        key: (req, file, cb) => {
+            const fileName = `${Date.now()}-${file.originalname}`;
+            cb(null, fileName);
+        },
+        acl: 'private', // ou 'public-read' se quiser acesso público
+    })
+});
+
+app.post('/buckets/:bucketName/upload', upload.single('file'), async (req, res) => {
     try {
-        logInfo('Upload efetuado', req, data.Buckets);
+        logInfo('Upload efetuado com sucesso', req, req.file);
+        res.status(200).json({
+            message: 'Upload efetuado com sucesso',
+            fileUrl: req.file.location,
+        });
     } catch (error) {
         logError("Erro ao efetuar upload", req, error);
+        res.status(500).json({ error: 'Erro no upload' });
     }
 });
 
@@ -434,13 +454,23 @@ app.post('/buckets/:bucketName/upload', async (req, res) => {
  *         description: Arquivo deletado com sucesso
  */
 app.delete('/buckets/:bucketName/file/:fileName', async (req, res) => {
+    const { bucketName, fileName } = req.params;
+
+    const params = {
+        Bucket: bucketName,
+        Key: fileName,
+    };
+
     try {
-        logInfo('Objeto removido', req, data.Buckets);
+        await s3.deleteObject(params).promise();
+        logInfo('Objeto removido com sucesso', req, params);
+        res.status(200).json({ message: 'Arquivo removido com sucesso.' });
     } catch (error) {
         logError("Erro ao remover objeto", req, error);
+        res.status(500).json({ error: 'Erro ao remover o arquivo', details: error });
     }
 });
-//#endregion
+
 
 
 swaggerDocs(app);
