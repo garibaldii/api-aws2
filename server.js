@@ -418,7 +418,7 @@ const upload = multer({
         },
         acl: 'private', // ou 'public-read' se quiser acesso público
     }),
-    limits: {fileSize: 50 * 1024 * 1024}
+    limits: { fileSize: 50 * 1024 * 1024 }
 });
 
 app.post('/buckets/:bucketName/upload', upload.single('file'), async (req, res) => {
@@ -443,9 +443,9 @@ app.post('/buckets/:bucketName/upload', upload.single('file'), async (req, res) 
 //     if (!req.file) {
 //       return res.status(400).send('Nenhum arquivo foi enviado');
 //     }
-  
+
 //     const file = req.file;
-  
+
 //     const params = {
 //       Bucket: '3011392313040-dsm-vot-hml',  
 //       Key: `uploads/${Date.now()}_${file.originalname}`, 
@@ -453,7 +453,7 @@ app.post('/buckets/:bucketName/upload', upload.single('file'), async (req, res) 
 //       ContentType: file.mimetype, 
 //       ACL: 'public-read'
 //     };
-  
+
 //     try {
 //       const s3Response = await s3.upload(params).promise();
 //       res.status(200).send({
@@ -491,22 +491,32 @@ app.post('/buckets/:bucketName/upload', upload.single('file'), async (req, res) 
  *         description: Arquivo deletado com sucesso
  */
 app.delete('/buckets/:bucketName/file/:fileName', async (req, res) => {
-    const { bucketName, fileName } = req.params;
+    const { bucketName, fileName } = req.params; // Desestruturando os parâmetros para pegar o nome do bucket e do arquivo
 
+    // Parâmetros para o método deleteObject do S3
     const params = {
-        Bucket: bucketName,
-        Key: fileName,
+        Bucket: bucketName,  // O nome do bucket
+        Key: fileName,       // O nome do arquivo
     };
 
     try {
+        // Deletando o arquivo do S3
         await s3.deleteObject(params).promise();
+
+        // Log de sucesso, para entender quando o arquivo foi removido
         logInfo('Objeto removido com sucesso', req, params);
+
+        // Respondendo ao cliente com uma mensagem de sucesso
         res.status(200).json({ message: 'Arquivo removido com sucesso.' });
     } catch (error) {
+        // Se houver erro, loga o erro e responde com status 500
         logError("Erro ao remover objeto", req, error);
+
+        // Respondendo ao cliente com uma mensagem de erro e detalhes sobre o erro
         res.status(500).json({ error: 'Erro ao remover o arquivo', details: error });
     }
 });
+
 
 
 
