@@ -417,21 +417,58 @@ const upload = multer({
             cb(null, fileName);
         },
         acl: 'private', // ou 'public-read' se quiser acesso público
-    })
+    }),
+    limits: {fileSize: 50 * 1024 * 1024}
 });
 
 app.post('/buckets/:bucketName/upload', upload.single('file'), async (req, res) => {
+    console.log(req.file)
+    if (!req.file) {
+        return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+    }
     try {
         logInfo('Upload efetuado com sucesso', req, req.file);
         res.status(200).json({
             message: 'Upload efetuado com sucesso',
-            fileUrl: req.file.location,
+            fileUrl: req.file.location,  // A URL do arquivo no S3
         });
     } catch (error) {
         logError("Erro ao efetuar upload", req, error);
         res.status(500).json({ error: 'Erro no upload' });
     }
 });
+
+
+// app.post('/upload', upload.single('file'), async (req, res) => {
+//     if (!req.file) {
+//       return res.status(400).send('Nenhum arquivo foi enviado');
+//     }
+  
+//     const file = req.file;
+  
+//     const params = {
+//       Bucket: '3011392313040-dsm-vot-hml',  
+//       Key: `uploads/${Date.now()}_${file.originalname}`, 
+//       Body: file.buffer, 
+//       ContentType: file.mimetype, 
+//       ACL: 'public-read'
+//     };
+  
+//     try {
+//       const s3Response = await s3.upload(params).promise();
+//       res.status(200).send({
+//         message: 'Arquivo enviado com sucesso!',
+//         fileUrl: s3Response.Location
+//       });
+//     } catch (err) {
+//       console.error('Erro ao enviar para o S3:', err);
+//       res.status(500).send({ message: 'Erro ao enviar o arquivo', error: err.message });
+//     }
+//   });
+
+
+
+
 
 /**
  * @swagger
