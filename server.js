@@ -116,6 +116,7 @@ app.get('/mongodb/testar-conexao', async (req, res) => {
  */
 app.post('/usuarios', async (req, res) => {
     try {
+        console.log("Recebido solicitacao de POST")
         const user = new User(req.body);
         await user.save();
         logInfo('Usuário criado', req);
