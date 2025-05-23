@@ -147,7 +147,7 @@ app.post('/usuarios', async (req, res) => {
  *                 properties:
  *                   _id:
  *                     type: string
- *                   nome:
+ *                   name:
  *                     type: string
  *                   email:
  *                     type: string
