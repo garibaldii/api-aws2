@@ -1,6 +1,13 @@
 require('dotenv').config();
 const express = require('express');
 const app = express();
+const cors = require('cors')
+
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: '*'
+}));
 //BD
 const mongoose = require('mongoose');
 //swagger
@@ -163,6 +170,8 @@ app.get('/usuarios', async (req, res) => {
     }
 
 });
+
+
 
 /**
  * @swagger
