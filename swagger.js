@@ -7,7 +7,7 @@ const options = {
         info: {
             title: 'API AWS',
             version: '0.0.1',
-            description: 'API de exemplo para integração com a AWS',
+            description: 'API que vai interagir com CRUD MySQL e CRUD MongoDB em ambiente de nuvem',
         }
     },
     apis: ['./server.js'],

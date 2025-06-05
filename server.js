@@ -8,13 +8,15 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: '*'
 }));
-//BD
+
+//mySQL
+const mysql = require('mysql2');
+//mongoDB
 const mongoose = require('mongoose');
 //swagger
 const swaggerDocs = require('./swagger');
 //S3
 const AWS = require('aws-sdk');
-
 //Log
 const { logInfo, logError } = require('./logger');
 
@@ -23,11 +25,235 @@ app.use(express.json());
 /**
 * @swagger
 * tags:
-*   - name: CRUD MongoDb
+*   - name: CRUD MySQL
+*     description: Operações de CRUD para product no MySQL
+*   - name: CRUD MongoDb 
 *     description: Operações de CRUD para usuários no MongoDb.
 *   - name: Buckets
 *     description: Operações de Listar buckets, upload e remoção de arquivo para um bucket S3.
 */
+
+//#region CRUD MySQL
+const pool = mysql.createPool({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    port: process.env.DB_PORT,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    multipleStatements: true
+}).promise();
+
+const DB_NAME = process.env.DB_NAME;
+
+/**
+ * @swagger
+ * /init-db:
+ *   post:
+ *     tags:
+ *       - CRUD MySQL
+ *     summary: Cria o banco de dados e a tabela produto
+ *     responses:
+ *       200:
+ *         description: Banco de dados e tabela criados com sucesso
+ */
+app.post('/init-db', async (req, res) => {
+    try {
+        const createDB = `CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\`; USE \`${DB_NAME}\`;
+      CREATE TABLE IF NOT EXISTS product (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        description VARCHAR(255) NOT NULL,
+        price DECIMAL(10,2) NOT NULL
+      );`;
+        await pool.query(createDB);
+        res.send('db and table created with success!');
+    } catch (err) {
+        console.error(error)
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * @swagger
+ * /produtos:
+ *   get:
+ *     summary: Lista todos os produtos
+ *     responses:
+ *       200:
+ *         description: Lista de produtos
+ */
+app.get('/product', async (req, res) => {
+  try {
+    await pool.query(`USE \`${DB_NAME}\``);
+    const [rows] = await pool.query('SELECT * FROM product');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * @swagger
+ * /product/{id}:
+ *   get:
+ *     tags:
+ *       - CRUD MySQL
+ *     summary: Busca um produto pelo ID
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Produto encontrado
+ *       404:
+ *         description: Produto não encontrado
+ */
+app.get('/product/:id', async (req, res) => {
+    try {
+        await pool.query(`USE \`${DB_NAME}\``);
+        const [rows] = await pool.query('SELECT * FROM product WHERE id = ?', [req.params.id])
+        if (rows.length === 0) return res.status(404).json({ error: 'Product cant be found' })
+        res.json(rows[0])
+    } catch (error) {
+        console.error(error)
+        res.status(500).send(error)
+    }
+})
+
+/**
+ * @swagger
+ * /product:
+ *   post:
+ *     tags:
+ *       - CRUD MySQL
+ *     summary: Cria um novo produto
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - description
+ *               - price
+ *             properties:
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               price:
+ *                 type: number
+ *     responses:
+ *       201:
+ *         description: Produto criado
+ */
+app.post('/product', async (req, res) => {
+    const { name, description, price } = req.body
+
+    try {
+        await pool.query(`USE \`${DB_NAME}\``)
+        const [result] = await pool.query(
+            'INSERT INTO product (name, description, price) VALUES (?, ?, ?)',
+            [name, description, price]
+        );
+        res.status(201).send(result)
+    } catch (error) {
+        console.error(error)
+        res.status(500).send(error)
+    }
+})
+
+/**
+ * @swagger
+ * /product/{id}:
+ *   put:
+ *     tags:
+ *       - CRUD MySQL
+ *     summary: Atualiza um produto
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - description
+ *               - price
+ *             properties:
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               price:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Produto atualizado
+ *       404:
+ *         description: Produto não encontrado
+ */
+app.put('/product/:id', async (req, res) => {
+    const { name, description, price } = req.body
+
+    try {
+        await pool.query(`USE \`${DB_NAME}\``);
+        const [result] = await pool.query(
+            'UPDATE product SET name = ?, description = ?, price = ? WHERE id = ?',
+            [name, description, price, req.params.id]
+        )
+        if (result.affectedRows === 0) return res.status(404).send("Product not found")
+        res.status(201).send(result)
+    } catch (error) {
+        console.error(error)
+        res.status(500).send(error)
+    }
+})
+
+/**
+ * @swagger
+ * /product/{id}:
+ *   delete:
+ *     tags:
+ *       - CRUD MySQL
+ *     summary: Deleta um produto
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Produto deletado com sucesso
+ *       404:
+ *         description: Produto não encontrado
+ */
+app.delete('/product/:id', async (req, res) => {
+    try {
+        await pool.query(`USE \`${DB_NAME}\``);
+        const [result] = await pool.query(
+            'DELETE FROM product WHERE id = ?', [req.params.id]
+        )
+        if (result.affectedRows === 0) res.status(404).send("Product doesn't exist")
+        res.status(200).send('Product Deleted with success!')
+    } catch (error) {
+        console.error(error)
+        res.status(500).send(error)
+    }
+})
 
 
 //#region CRUD MongoDb
@@ -530,5 +756,8 @@ app.delete('/buckets/:bucketName/file/:fileName', async (req, res) => {
 
 
 
-swaggerDocs(app);
-app.listen(3000, () => console.log('Servidor rodando na porta 3000'));
+const PORT = process.env.PORT || 3000
+app.listen(PORT, () => {
+    swaggerDocs(app);
+    console.log('Servidor rodando na porta', PORT)
+});
